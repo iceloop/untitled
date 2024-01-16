@@ -11,13 +11,16 @@ mod models;
 use models::{Article, NewArticle, UpdateArticle};
 
 async fn get_all_article(pool: web::Data<MySqlPool>) -> impl Responder {
-    let result = sqlx::query_as::<_, Article>("SELECT * FROM article")
+    let result = sqlx::query_as::<_, Article>("SELECT * FROM articles")
         .fetch_all(pool.get_ref())
         .await;
 
     match result {
-        Ok(Article) => HttpResponse::Ok().json(Article),
-        Err(_) => HttpResponse::InternalServerError().into(),
+        Ok(article) => HttpResponse::Ok().json(article),
+        Err(e) => {
+            eprintln!("Error querying the database: {:?}", e);
+            HttpResponse::InternalServerError().finish()
+        }
     }
 }
 
@@ -28,7 +31,7 @@ async fn get_article_by_id(
 ) -> impl Responder {
     let article_id = id.into_inner();
 
-    match sqlx::query_as::<_, Article>("SELECT * FROM Article WHERE id = ?")
+    match sqlx::query_as::<_, Article>("SELECT * FROM articles WHERE id = ?")
         .bind(article_id)
         .fetch_one(pool.get_ref())
         .await
@@ -44,7 +47,7 @@ async fn add_article(
 ) -> impl Responder {
     let article = new_article.into_inner();
 
-    match sqlx::query("INSERT INTO Article (title, content) VALUES (?, ?)")
+    match sqlx::query("INSERT INTO articles (title, content) VALUES (?, ?)")
         .bind(&article.title)
         .bind(&article.content)
         .execute(pool.get_ref())
@@ -63,7 +66,7 @@ async fn update_article(
     let article_id = id.into_inner();
     let article = article_data.into_inner();
 
-    match sqlx::query("UPDATE Article SET title = ?, content = ? WHERE id = ?")
+    match sqlx::query("UPDATE articles SET title = ?, content = ? WHERE id = ?")
         .bind(&article.title)
         .bind(&article.content)
         .bind(article_id)
@@ -81,7 +84,7 @@ async fn delete_article(
 ) -> impl Responder {
     let article_id = id.into_inner();
 
-    match sqlx::query("DELETE FROM Article WHERE id = ?")
+    match sqlx::query("DELETE FROM articles WHERE id = ?")
         .bind(article_id)
         .execute(pool.get_ref())
         .await
